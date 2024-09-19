@@ -1,4 +1,5 @@
 # Welcome to your CDK Go project!
+(random 3am playaround with go and aws cdk)
 
 This is a blank project for Go development with CDK.
 
