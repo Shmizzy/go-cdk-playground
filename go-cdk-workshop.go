@@ -2,9 +2,8 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
-	"github.com/aws/aws-cdk-go/awscdk/v2/awssns"
-	"github.com/aws/aws-cdk-go/awscdk/v2/awssnssubscriptions"
-	"github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 )
@@ -20,13 +19,27 @@ func NewGoCdkWorkshopStack(scope constructs.Construct, id string, props *GoCdkWo
 	}
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
-
-	queue := awssqs.NewQueue(stack, jsii.String("GoCdkWorkshopQueue"), &awssqs.QueueProps{
-		VisibilityTimeout: awscdk.Duration_Seconds(jsii.Number(300)),
+	myFunction := awslambda.NewFunction(stack, jsii.String("MyFunction"), &awslambda.FunctionProps{
+		Code:    awslambda.Code_FromAsset(jsii.String("lambda/function.zip"), nil),
+		Runtime: awslambda.Runtime_PROVIDED_AL2023(),
+		Handler: jsii.String("main"),
 	})
 
-	topic := awssns.NewTopic(stack, jsii.String("GoCdkWorkshopTopic"), &awssns.TopicProps{})
-	topic.AddSubscription(awssnssubscriptions.NewSqsSubscription(queue, &awssnssubscriptions.SqsSubscriptionProps{}))
+	api := awsapigateway.NewRestApi(stack, jsii.String("myAPI"), &awsapigateway.RestApiProps{
+		DefaultCorsPreflightOptions: &awsapigateway.CorsOptions{
+			AllowOrigins: jsii.Strings("*"),
+			AllowMethods: jsii.Strings("GET", "POST", "PUT", "DELETE", "OPTIONS"),
+			AllowHeaders: jsii.Strings("Content-Type"),
+		},
+		DeployOptions: &awsapigateway.StageOptions{
+			LoggingLevel: awsapigateway.MethodLoggingLevel_INFO,
+		},
+	})
+
+	integration := awsapigateway.NewLambdaIntegration(myFunction, nil)
+
+	callFunction := api.Root().AddResource(jsii.String("hello"), nil)
+	callFunction.AddMethod(jsii.String("GET"), integration, nil)
 
 	return stack
 }
